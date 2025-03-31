@@ -793,6 +793,28 @@ static HRESULT HandleCommand(std::shared_ptr<IDebugger> &sharedDebugger, std::st
 
         const json &processIdArg = arguments.at("processId");
         if (processIdArg.is_string())
+            if (processIdArg.get<std::string>().substr(0, 4) == "cmd:")
+            {
+                // Evaluate command and get output as process ID
+                std::string cmd = processIdArg.get<std::string>().substr(4);
+                FILE* pipe = popen(cmd.c_str(), "r");
+                if (!pipe)
+                    return E_FAIL;
+                
+                char buffer[128];
+                std::string result;
+                while (fgets(buffer, sizeof(buffer), pipe) != NULL)
+                    result += buffer;
+                
+                pclose(pipe);
+                
+                // Trim whitespace
+                result.erase(0, result.find_first_not_of(" \n\r\t"));
+                result.erase(result.find_last_not_of(" \n\r\t") + 1);
+                
+                processId = std::stoi(result);
+            }
+            else
             processId = std::stoi(processIdArg.get<std::string>());
         else if (processIdArg.is_number())
             processId = processIdArg;
